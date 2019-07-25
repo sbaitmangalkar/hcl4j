@@ -319,5 +319,4 @@ public class HclFieldExtractor {
         }
         return result;
     }
-
 }
