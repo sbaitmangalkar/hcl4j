@@ -1,6 +1,11 @@
 package com.baitman.hcl.parser.service;
 
 import com.baitman.hcl.parser.service.constants.TerraformConstants;
+import com.google.common.base.Joiner;
+import com.google.common.collect.Lists;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.File;
 import java.io.IOException;
@@ -21,12 +26,12 @@ public class HclFieldExtractor {
         try {
             return extractHclData(IOUtils.toString(terraformFileInputStream, encoding));
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new HclException(
+                "Couldn't extract HCL field information from the given input stream");
         }
     }
 
     /**
-     *
      * @param terraformFile
      * @return
      * @throws IOException
@@ -36,7 +41,7 @@ public class HclFieldExtractor {
             String fileContent = FileUtils.readFileToString(terraformFile, encoding);
             return extractHclData(fileContent);
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new HclException("Couldn't extract HCL field information from the given file");
         }
     }
 
@@ -54,24 +59,28 @@ public class HclFieldExtractor {
                 for (String eachBlock : fileBlocks) {
                     //For every block extract provider, module, variable, data and resource info
                     if (eachBlock.startsWith(TerraformConstants.PROVIDER.getConstantName())) {
-                        Map<String, List<String>> providerMap = extractProviderOrVariableInfo(eachBlock,
-                            TerraformConstants.PROVIDER.getConstantName());
+                        Map<String, List<String>> providerMap =
+                            extractProviderOrVariableInfo(eachBlock,
+                                TerraformConstants.PROVIDER.getConstantName());
                         fileData.add(providerMap);
                     } else if (eachBlock.startsWith(TerraformConstants.MODULE.getConstantName())) {
-                        Map<String, List<String>> moduleMap =
-                            extractBlockInfo(eachBlock, TerraformConstants.MODULE.getConstantName());
+                        Map<String, List<String>> moduleMap = extractBlockInfo(eachBlock,
+                            TerraformConstants.MODULE.getConstantName());
                         fileData.add(moduleMap);
                     } else if (eachBlock.startsWith(TerraformConstants.DATA.getConstantName())) {
                         Map<String, List<String>> dataMap =
                             extractBlockInfo(eachBlock, TerraformConstants.DATA.getConstantName());
                         fileData.add(dataMap);
-                    } else if (eachBlock.startsWith(TerraformConstants.VARIABLE.getConstantName())) {
-                        Map<String, List<String>> variableMap = extractProviderOrVariableInfo(eachBlock,
-                            TerraformConstants.VARIABLE.getConstantName());
+                    } else if (eachBlock
+                        .startsWith(TerraformConstants.VARIABLE.getConstantName())) {
+                        Map<String, List<String>> variableMap =
+                            extractProviderOrVariableInfo(eachBlock,
+                                TerraformConstants.VARIABLE.getConstantName());
                         fileData.add(variableMap);
-                    } else if (eachBlock.startsWith(TerraformConstants.RESOURCE.getConstantName())) {
-                        Map<String, List<String>> resourceMap =
-                            extractBlockInfo(eachBlock, TerraformConstants.RESOURCE.getConstantName());
+                    } else if (eachBlock
+                        .startsWith(TerraformConstants.RESOURCE.getConstantName())) {
+                        Map<String, List<String>> resourceMap = extractBlockInfo(eachBlock,
+                            TerraformConstants.RESOURCE.getConstantName());
                         fileData.add(resourceMap);
                     }
                 }
@@ -99,15 +108,17 @@ public class HclFieldExtractor {
 
         // Extract tags block if present
         if (eachBlock.contains(TerraformConstants.TAGS.getConstantName())) {
-            String tags =
-                StringUtils.substringBetween(eachBlock, TerraformConstants.TAGS.getConstantName(), "}");
-            List<String> tagsList = extractDataFromHclObject(tags, TerraformConstants.TAGS.getConstantName());
+            String tags = StringUtils
+                .substringBetween(eachBlock, TerraformConstants.TAGS.getConstantName(), "}");
+            List<String> tagsList =
+                extractDataFromHclObject(tags, TerraformConstants.TAGS.getConstantName());
             value.addAll(tagsList);
         }
 
         if (eachBlock.contains(TerraformConstants.ROOT_BLOCK_DEVICE.getConstantName())) {
-            String rootBlockDevices = StringUtils.substringBetween(eachBlock,
-                TerraformConstants.ROOT_BLOCK_DEVICE.getConstantName(), "]");
+            String rootBlockDevices = StringUtils
+                .substringBetween(eachBlock, TerraformConstants.ROOT_BLOCK_DEVICE.getConstantName(),
+                    "]");
             List<String> rootBlockDevicesList = extractDataFromHclArray(rootBlockDevices,
                 TerraformConstants.ROOT_BLOCK_DEVICE.getConstantName());
             value.addAll(rootBlockDevicesList);
@@ -116,24 +127,24 @@ public class HclFieldExtractor {
         // Extract INGRESS data if present
         if (eachBlock.contains(TerraformConstants.INGRESS.getConstantName())) {
             String[] ingresses = eachBlock.split(TerraformConstants.INGRESS.getConstantName());
-            List<String> ingressData = Arrays.stream(ingresses).map(str -> str.trim()).filter(str -> str.startsWith("{"))
-                .map(str -> StringUtils.substringBetween(str, "{", "}"))
-                .map(str -> str.replaceAll("\\n", ","))
-                .filter(str -> str.startsWith(","))
-                .map(str -> str.replaceFirst(",", TerraformConstants.INGRESS.getConstantName()))
-                .collect(Collectors.toList());
+            List<String> ingressData =
+                Arrays.stream(ingresses).map(str -> str.trim()).filter(str -> str.startsWith("{"))
+                    .map(str -> StringUtils.substringBetween(str, "{", "}"))
+                    .map(str -> str.replaceAll("\\n", ",")).filter(str -> str.startsWith(","))
+                    .map(str -> str.replaceFirst(",", TerraformConstants.INGRESS.getConstantName()))
+                    .collect(Collectors.toList());
             value.addAll(ingressData);
         }
 
         //Extract EGRESS data if present
         if (eachBlock.contains(TerraformConstants.EGRESS.getConstantName())) {
             String[] ingresses = eachBlock.split(TerraformConstants.EGRESS.getConstantName());
-            List<String> egressData = Arrays.stream(ingresses).map(str -> str.trim()).filter(str -> str.startsWith("{"))
-                .map(str -> StringUtils.substringBetween(str, "{", "}"))
-                .map(str -> str.replaceAll("\\n", ","))
-                .filter(str -> str.startsWith(","))
-                .map(str -> str.replaceFirst(",", TerraformConstants.EGRESS.getConstantName()))
-                .collect(Collectors.toList());
+            List<String> egressData =
+                Arrays.stream(ingresses).map(str -> str.trim()).filter(str -> str.startsWith("{"))
+                    .map(str -> StringUtils.substringBetween(str, "{", "}"))
+                    .map(str -> str.replaceAll("\\n", ",")).filter(str -> str.startsWith(","))
+                    .map(str -> str.replaceFirst(",", TerraformConstants.EGRESS.getConstantName()))
+                    .collect(Collectors.toList());
             value.addAll(egressData);
         }
 
@@ -142,15 +153,17 @@ public class HclFieldExtractor {
             String[] lifecycleRules =
                 eachBlock.split(TerraformConstants.LIFECYCLE_RULE.getConstantName());
             List<String> lifeCycleRuleList = Arrays.stream(lifecycleRules).map(str -> str.trim())
-                .filter(str -> str.startsWith("{")).map(str -> StringUtils.substringBeforeLast(str, "}"))
+                .filter(str -> str.startsWith("{"))
+                .map(str -> StringUtils.substringBeforeLast(str, "}"))
                 .map(str -> str.replaceAll("\\n", ","))
                 .map(str -> TerraformConstants.LIFECYCLE_RULE.getConstantName() + "." + str)
                 .collect(Collectors.toList());
             value.addAll(lifeCycleRuleList);
         }
 
-        if(eachBlock.contains(TerraformConstants.SERVER_SIDE_ENCRYPTION.getConstantName())) {
-            value.addAll(Lists.newArrayList(TerraformConstants.SERVER_SIDE_ENCRYPTION.getConstantName()));
+        if (eachBlock.contains(TerraformConstants.SERVER_SIDE_ENCRYPTION.getConstantName())) {
+            value.addAll(
+                Lists.newArrayList(TerraformConstants.SERVER_SIDE_ENCRYPTION.getConstantName()));
         }
 
         // Extract origin if present
@@ -158,15 +171,16 @@ public class HclFieldExtractor {
             String[] origins = eachBlock.split("(?=origin \\{)");
             List<String> originsList = Arrays.stream(origins).map(str -> str.trim())
                 .filter(str -> str.startsWith(TerraformConstants.ORIGIN.getConstantName()))
-                .map(str -> StringUtils.substringBefore(str, "}")).map(str -> str.replaceAll("\\n", ","))
-                .collect(Collectors.toList());
+                .map(str -> StringUtils.substringBefore(str, "}"))
+                .map(str -> str.replaceAll("\\n", ",")).collect(Collectors.toList());
             value.addAll(originsList);
         }
 
         //Extract access logs if present
         if (eachBlock.contains(TerraformConstants.ACCESS_LOGS_BLOCK.getConstantName())) {
             String accessLogs =
-                TerraformConstants.ACCESS_LOGS_BLOCK.getConstantName().replaceFirst("\\{", "").trim();
+                TerraformConstants.ACCESS_LOGS_BLOCK.getConstantName().replaceFirst("\\{", "")
+                    .trim();
             String logging = StringUtils.substringBetween(eachBlock, accessLogs, "}");
             List<String> loggingList = extractDataFromHclObject(logging, accessLogs);
             value.addAll(loggingList);
@@ -191,15 +205,14 @@ public class HclFieldExtractor {
          */
         if (eachBlock.contains("<<")) {
             String customBlockName = StringUtils.substringBetween(eachBlock, "<<", "{");
-            String customBlock =
-                StringUtils.substringAfter(eachBlock, customBlockName);
+            String customBlock = StringUtils.substringAfter(eachBlock, customBlockName);
             value.addAll(Lists.newArrayList("customBlock_" + customBlock));
         }
 
         // Extract statement block if present
         if (eachBlock.contains(TerraformConstants.STATEMENT.getConstantName())) {
-            String statements = StringUtils.substringBetween(eachBlock,
-                TerraformConstants.STATEMENT.getConstantName(), "]");
+            String statements = StringUtils
+                .substringBetween(eachBlock, TerraformConstants.STATEMENT.getConstantName(), "]");
             List<String> statementList =
                 extractDataFromHclArray(statements, TerraformConstants.STATEMENT.getConstantName());
             value.addAll(statementList);
@@ -216,7 +229,8 @@ public class HclFieldExtractor {
         // Extract versioning block if present
         if (eachBlock.contains(TerraformConstants.VERSIONING_BLOCK.getConstantName())) {
             String type =
-                TerraformConstants.VERSIONING_BLOCK.getConstantName().replaceFirst("\\{", "").trim();
+                TerraformConstants.VERSIONING_BLOCK.getConstantName().replaceFirst("\\{", "")
+                    .trim();
             String data = StringUtils.substringBetween(eachBlock, type, "}");
             List<String> result = extractDataFromHclObject(data, type);
             value.addAll(result);
@@ -229,7 +243,8 @@ public class HclFieldExtractor {
                 if (blockInfos[beginIndex].isEmpty()) {
                     continue;
                 }
-                if (blockInfos[beginIndex].contains("=") || blockInfos[beginIndex].trim().startsWith("\"$")) {
+                if (blockInfos[beginIndex].contains("=") || blockInfos[beginIndex].trim()
+                    .startsWith("\"$")) {
                     value.add(blockInfos[beginIndex].trim());
                 }
             }
@@ -311,8 +326,8 @@ public class HclFieldExtractor {
             for (int begin = 1; begin < objectContents.length; begin++) {
                 if (objectContents[begin].contains("=") || objectContents[begin].contains(":")) {
                     StringBuilder objectContentBuilder = new StringBuilder();
-                    objectContentBuilder.append(objectType).append("[").append(begin).append("]").append(".")
-                        .append(objectContents[begin].trim());
+                    objectContentBuilder.append(objectType).append("[").append(begin).append("]")
+                        .append(".").append(objectContents[begin].trim());
                     result.add(objectContentBuilder.toString());
                 }
             }
