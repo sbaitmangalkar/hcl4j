@@ -1,21 +1,18 @@
 package com.baitman.hcl.parser.service;
 
-import com.baitman.hcl.parser.service.constants.TerraformConstants;
-import com.google.common.base.Joiner;
-import com.google.common.collect.Lists;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.*;
+import java.util.stream.Collectors;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import com.baitman.hcl.parser.service.constants.TerraformConstants;
+import com.google.common.base.Joiner;
+import com.google.common.collect.Lists;
 
 public class HclFieldExtractor {
     // used to break HCL blocks in terraform template file
