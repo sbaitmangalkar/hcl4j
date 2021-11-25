@@ -1,4 +1,4 @@
-package com.baitman.hcl.parser.service;
+package com.baitman.hcl.parser.service.exception;
 
 public class HclException extends RuntimeException {
     public HclException(String message) {

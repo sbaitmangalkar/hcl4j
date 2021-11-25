@@ -1,2 +1,4 @@
-package com.baitman.hcl.parser.model.enums;public enum IaCResourceType {
+package com.baitman.hcl.parser.model.enums;
+
+public enum IaCResourceType {
 }
